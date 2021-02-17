@@ -53,11 +53,13 @@ class MainActivity : AppCompatActivity(), LoaderManager.LoaderCallbacks<Forecast
         locationView.setHasFixedSize(true)
         locationView.addItemDecoration(DividerItemDecoration(locationView.context, locationView.layoutManager!!.layoutDirection))
 
-        val weatherLoader = supportLoaderManager.initLoader(0, null, this)
-        weatherLoader.startLoading()
+
 
         forecastView.adapter =
             ForecastAdapter(this, forecasts)
+
+        val weatherLoader = supportLoaderManager.initLoader(0, null, this)
+        weatherLoader.forceLoad()
 
         val locations = listOf(
             Location("Backyard"),
@@ -120,7 +122,7 @@ class MainActivity : AppCompatActivity(), LoaderManager.LoaderCallbacks<Forecast
     }
 
     override fun onLoaderReset(loader: Loader<ForecastAndCurrentWeather>) {
-        TODO("Not yet implemented")
+        /* no-op */
     }
 }
 

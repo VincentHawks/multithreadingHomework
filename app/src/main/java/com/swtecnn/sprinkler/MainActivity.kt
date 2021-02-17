@@ -3,6 +3,9 @@ package com.swtecnn.sprinkler
 import android.content.res.Configuration
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import android.view.View
 import android.widget.*
 import androidx.constraintlayout.widget.Guideline
@@ -10,10 +13,17 @@ import androidx.core.view.children
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.swtecnn.sprinkler.api.RetrofitClient
+import com.swtecnn.sprinkler.api.model.CurrentWeather
+import com.swtecnn.sprinkler.api.model.WeatherForecast
 import com.swtecnn.sprinkler.view.adapters.ForecastAdapter
 import com.swtecnn.sprinkler.view.adapters.LocationAdapter
 import com.swtecnn.sprinkler.view.models.Forecast
 import com.swtecnn.sprinkler.view.models.Location
+import com.swtecnn.sprinkler.view.models.fromDailyForecast
+import kotlin.math.floor
+
+const val ONE_HOUR_MILLIS = 3600000L
 
 class MainActivity : AppCompatActivity() {
 
@@ -42,26 +52,54 @@ class MainActivity : AppCompatActivity() {
         locationView.setHasFixedSize(true)
         locationView.addItemDecoration(DividerItemDecoration(locationView.context, locationView.layoutManager!!.layoutDirection))
 
-//        val forecasts = listOf(
-//            Forecast(
-//                datestamp = "February 7, 2020",
-//                temperature = "23º",
-//                icon = R.drawable.rain
-//            ),
-//            Forecast(
-//                datestamp = "February 8, 2020",
-//                temperature = "23º",
-//                icon = R.drawable.cloudy
-//            ),
-//            Forecast(
-//                datestamp = "February 9, 2020",
-//                temperature = "25º",
-//                icon = R.drawable.partly_cloudy
-//            )
-//        )
 
         forecastView.adapter =
             ForecastAdapter(this, forecasts)
+
+        val handlerThread = Thread {
+            val weatherHandler = Handler()
+            Looper.prepare()
+            weatherHandler.post {
+                val weatherForecastResponse = RetrofitClient.getWeatherForecast().execute()
+                val currentWeatherResponse = RetrofitClient.getCurrentWeather().execute()
+
+                if (!weatherForecastResponse.isSuccessful) {
+                    Log.println(
+                        Log.ERROR, "WeatherThread",
+                        "Weather forecast couldn't be fetched, reason: ${weatherForecastResponse.errorBody()}"
+                    )
+                }
+
+                if (!currentWeatherResponse.isSuccessful) {
+                    Log.e(
+                        "WeatherThread",
+                        "Current weather couldn't be fetched, reason: ${currentWeatherResponse.errorBody()}"
+                    )
+                }
+
+                if (weatherForecastResponse.isSuccessful && currentWeatherResponse.isSuccessful) {
+                    // If fetched successfully, update the data on screen
+                    val digestedForecast: MutableList<Forecast> = mutableListOf()
+                    val rawForecast: WeatherForecast = weatherForecastResponse.body()!!
+                    val rawCurrentWeather: CurrentWeather = currentWeatherResponse.body()!!.weather
+                    for(forecast in rawForecast.daily) {
+                        digestedForecast.add(fromDailyForecast(forecast))
+                    }
+                    try {
+                        runOnUiThread {
+                            (forecastView.adapter!! as ForecastAdapter).forecast.clear()
+                            (forecastView.adapter!! as ForecastAdapter).forecast.addAll(digestedForecast)
+                            forecastView.adapter!!.notifyDataSetChanged()
+                            tempValue.text = "${floor(rawCurrentWeather.temp.toDouble()).toInt()}°"
+                            humidValue.text = "${rawCurrentWeather.humidity}%"
+                        }
+                    } catch(e: Throwable) {
+                        return@post
+                    }
+                }
+            }
+        }
+        handlerThread.start()
 
         val locations = listOf(
             Location("Backyard"),
@@ -73,8 +111,8 @@ class MainActivity : AppCompatActivity() {
         locationView.adapter =
             LocationAdapter(this, locations)
         locationView.addItemDecoration(DividerItemDecoration(
-                locationView.context,
-                locationLayoutManager.orientation
+            locationView.context,
+            locationLayoutManager.orientation
         ))
 
         val forecastGuidelinePercent: Float = when(resources.configuration.orientation) {
@@ -84,6 +122,7 @@ class MainActivity : AppCompatActivity() {
         }
         val forecastGuideline: Guideline = findViewById(R.id.forecastGuideline)
         forecastGuideline.setGuidelinePercent(forecastGuidelinePercent)
+
     }
 
     fun onSprinklerClick(view: View) {

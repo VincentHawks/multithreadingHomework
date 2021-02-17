@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Sprinkler</string>
+    <string name="acc_sprinkler_on">Sprinkler is on. Double tap to turn off</string>
+    <string name="acc_sprinkler_off">Sprinkler is off. Double tap to turn on</string>
+    <string name="cloudy">The weather is cloudy, no precipitation</string>
+    <string name="rain">The weather is rainy</string>
+    <string name="partly_cloudy">The weather is partly cloudy</string>
+</resources>

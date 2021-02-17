@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.Looper
 import android.util.Log
 import android.view.View
@@ -15,12 +16,16 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.swtecnn.sprinkler.api.RetrofitClient
 import com.swtecnn.sprinkler.api.model.CurrentWeather
+import com.swtecnn.sprinkler.api.model.CurrentWeatherForecast
 import com.swtecnn.sprinkler.api.model.WeatherForecast
 import com.swtecnn.sprinkler.view.adapters.ForecastAdapter
 import com.swtecnn.sprinkler.view.adapters.LocationAdapter
 import com.swtecnn.sprinkler.view.models.Forecast
 import com.swtecnn.sprinkler.view.models.Location
 import com.swtecnn.sprinkler.view.models.fromDailyForecast
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import kotlin.math.floor
 
 const val ONE_HOUR_MILLIS = 3600000L
@@ -56,50 +61,47 @@ class MainActivity : AppCompatActivity() {
         forecastView.adapter =
             ForecastAdapter(this, forecasts)
 
-        val handlerThread = Thread {
-            val weatherHandler = Handler()
-            Looper.prepare()
-            weatherHandler.post {
-                val weatherForecastResponse = RetrofitClient.getWeatherForecast().execute()
-                val currentWeatherResponse = RetrofitClient.getCurrentWeather().execute()
+        val handlerThread = HandlerThread("WeatherUpdater").run {
 
-                if (!weatherForecastResponse.isSuccessful) {
-                    Log.println(
-                        Log.ERROR, "WeatherThread",
-                        "Weather forecast couldn't be fetched, reason: ${weatherForecastResponse.errorBody()}"
-                    )
+            RetrofitClient.getWeatherForecast().enqueue(object:
+                Callback<WeatherForecast> {
+                override fun onFailure(call: Call<WeatherForecast>, t: Throwable) {
+                    Log.e("WeatherThread", "Failed to fetch weather data")
                 }
 
-                if (!currentWeatherResponse.isSuccessful) {
-                    Log.e(
-                        "WeatherThread",
-                        "Current weather couldn't be fetched, reason: ${currentWeatherResponse.errorBody()}"
-                    )
-                }
-
-                if (weatherForecastResponse.isSuccessful && currentWeatherResponse.isSuccessful) {
-                    // If fetched successfully, update the data on screen
+                override fun onResponse(
+                    call: Call<WeatherForecast>,
+                    response: Response<WeatherForecast>
+                ) {
                     val digestedForecast: MutableList<Forecast> = mutableListOf()
-                    val rawForecast: WeatherForecast = weatherForecastResponse.body()!!
-                    val rawCurrentWeather: CurrentWeather = currentWeatherResponse.body()!!.weather
-                    for(forecast in rawForecast.daily) {
+                    val rawForecast: WeatherForecast = (response.body() as WeatherForecast)
+                    for (forecast in rawForecast.daily) {
                         digestedForecast.add(fromDailyForecast(forecast))
                     }
-                    try {
-                        runOnUiThread {
-                            (forecastView.adapter!! as ForecastAdapter).forecast.clear()
-                            (forecastView.adapter!! as ForecastAdapter).forecast.addAll(digestedForecast)
-                            forecastView.adapter!!.notifyDataSetChanged()
-                            tempValue.text = "${floor(rawCurrentWeather.temp.toDouble()).toInt()}°"
-                            humidValue.text = "${rawCurrentWeather.humidity}%"
-                        }
-                    } catch(e: Throwable) {
-                        return@post
+                    runOnUiThread {
+                        (forecastView.adapter!! as ForecastAdapter).forecast.clear()
+                        (forecastView.adapter!! as ForecastAdapter).forecast.addAll(digestedForecast)
+                        forecastView.adapter!!.notifyDataSetChanged()
                     }
                 }
-            }
+            })
+
+
+            RetrofitClient.getCurrentWeather().enqueue(object: Callback<CurrentWeatherForecast> {
+                override fun onFailure(call: Call<CurrentWeatherForecast>, t: Throwable) {
+                    Log.e("WeatherThread", "Unable to fetch current weather")
+                }
+
+                override fun onResponse(
+                    call: Call<CurrentWeatherForecast>,
+                    response: Response<CurrentWeatherForecast>
+                ) {
+                    val rawCurrentWeather = (response.body() as CurrentWeatherForecast).weather
+                    tempValue.text = "${floor(rawCurrentWeather.temp.toDouble()).toInt()}°"
+                    humidValue.text = "${rawCurrentWeather.humidity}%"
+                }
+            })
         }
-        handlerThread.start()
 
         val locations = listOf(
             Location("Backyard"),

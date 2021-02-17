@@ -20,8 +20,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sprinklerSwitcher: ImageSwitcher
     private lateinit var forecastView: RecyclerView
     private lateinit var locationView: RecyclerView
-    private lateinit var tempValue: TextView
-    private lateinit var humidValue: TextView
+    @Volatile private lateinit var tempValue: TextView
+    @Volatile private lateinit var humidValue: TextView
     private var sprinklerOnline = true
 
     @Volatile var forecasts: MutableList<Forecast> = mutableListOf()

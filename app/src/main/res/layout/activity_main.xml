@@ -89,7 +89,6 @@
         android:id="@+id/tempValue"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="24º"
         android:textSize="50sp"
         app:layout_constraintStart_toStartOf="@id/leftThirdGuideline"
         app:layout_constraintTop_toBottomOf="@id/tempLabel" />
@@ -98,7 +97,6 @@
         android:id="@+id/humidValue"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="73%"
         android:textSize="50sp"
         app:layout_constraintBaseline_toBaselineOf="@id/tempValue"
         app:layout_constraintStart_toStartOf="@+id/leftThirdGuideline"

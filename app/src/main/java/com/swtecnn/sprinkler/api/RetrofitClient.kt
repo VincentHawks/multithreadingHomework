@@ -8,6 +8,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import com.swtecnn.sprinkler.api.model.CurrentWeatherForecast
 import com.swtecnn.sprinkler.api.model.WeatherForecast
+import io.reactivex.rxjava3.core.Single
 
 private const val BASE_URL = "https://api.openweathermap.org"
 
@@ -29,15 +30,15 @@ object RetrofitClient {
             .build()
     }
 
-    fun getWeatherForecast(): Call<WeatherForecast> {
+    fun getWeatherForecast(): Single<WeatherForecast> {
         return api.getWeatherForecast()
     }
 
-    fun getCurrentWeather(): Call<CurrentWeatherForecast> {
+    fun getCurrentWeather(): Single<CurrentWeatherForecast> {
         return api.getCurrentWeatherForecast()
     }
 
-    fun getImage(imageCode: String): Call<ResponseBody> {
+    fun getImage(imageCode: String): Single<ResponseBody> {
         return api.getWeatherImage(imageCode)
     }
 }

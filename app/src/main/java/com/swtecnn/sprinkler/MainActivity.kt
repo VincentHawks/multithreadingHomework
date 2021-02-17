@@ -10,10 +10,15 @@ import androidx.core.view.children
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.swtecnn.sprinkler.api.RetrofitClient
+import com.swtecnn.sprinkler.api.model.WeatherForecast
 import com.swtecnn.sprinkler.view.adapters.ForecastAdapter
 import com.swtecnn.sprinkler.view.adapters.LocationAdapter
 import com.swtecnn.sprinkler.view.models.Forecast
 import com.swtecnn.sprinkler.view.models.Location
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.schedulers.Schedulers
+import org.reactivestreams.Subscription
 
 class MainActivity : AppCompatActivity() {
 
@@ -23,6 +28,8 @@ class MainActivity : AppCompatActivity() {
     @Volatile private lateinit var tempValue: TextView
     @Volatile private lateinit var humidValue: TextView
     private var sprinklerOnline = true
+
+    private lateinit var weatherSubscription: Subscription
 
     @Volatile var forecasts: MutableList<Forecast> = mutableListOf()
 
@@ -42,26 +49,15 @@ class MainActivity : AppCompatActivity() {
         locationView.setHasFixedSize(true)
         locationView.addItemDecoration(DividerItemDecoration(locationView.context, locationView.layoutManager!!.layoutDirection))
 
-//        val forecasts = listOf(
-//            Forecast(
-//                datestamp = "February 7, 2020",
-//                temperature = "23º",
-//                icon = R.drawable.rain
-//            ),
-//            Forecast(
-//                datestamp = "February 8, 2020",
-//                temperature = "23º",
-//                icon = R.drawable.cloudy
-//            ),
-//            Forecast(
-//                datestamp = "February 9, 2020",
-//                temperature = "25º",
-//                icon = R.drawable.partly_cloudy
-//            )
-//        )
-
         forecastView.adapter =
             ForecastAdapter(this, forecasts)
+
+        weatherSubscription = RetrofitClient.getWeatherForecast()
+            .subscribeOn(Schedulers.single())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe { forecast ->
+
+            }
 
         val locations = listOf(
             Location("Backyard"),

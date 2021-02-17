@@ -7,6 +7,7 @@ import retrofit2.http.Query
 import retrofit2.http.Url
 import com.swtecnn.sprinkler.api.model.CurrentWeatherForecast
 import com.swtecnn.sprinkler.api.model.WeatherForecast
+import io.reactivex.rxjava3.core.Single
 
 private const val API_KEY = "92dd28f1dc9baf629b40f09a07ff87ac"
 
@@ -24,7 +25,7 @@ interface RetrofitService {
         ).joinToString(separator = ","),
         @Query("units") units: String = "metric",
         @Query("appId") apiKey: String = API_KEY
-    ): Call<WeatherForecast>
+    ): Single<WeatherForecast>
 
     @GET("data/2.5/weather")
     fun getCurrentWeatherForecast(
@@ -33,8 +34,8 @@ interface RetrofitService {
         ).joinToString(separator = ","),
         @Query("appId") apiKey: String = API_KEY,
         @Query("units") units: String = "metric"
-    ): Call<CurrentWeatherForecast>
+    ): Single<CurrentWeatherForecast>
 
     @GET
-    fun getWeatherImage(@Url imageUrl: String): Call<ResponseBody>
+    fun getWeatherImage(@Url imageUrl: String): Single<ResponseBody>
 }

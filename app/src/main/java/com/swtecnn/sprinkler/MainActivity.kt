@@ -1,8 +1,10 @@
 package com.swtecnn.sprinkler
 
 import android.content.res.Configuration
+import android.os.AsyncTask
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.*
 import androidx.constraintlayout.widget.Guideline
@@ -10,10 +12,15 @@ import androidx.core.view.children
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.swtecnn.sprinkler.api.RetrofitClient
+import com.swtecnn.sprinkler.api.model.CurrentWeather
+import com.swtecnn.sprinkler.api.model.WeatherForecast
 import com.swtecnn.sprinkler.view.adapters.ForecastAdapter
 import com.swtecnn.sprinkler.view.adapters.LocationAdapter
 import com.swtecnn.sprinkler.view.models.Forecast
 import com.swtecnn.sprinkler.view.models.Location
+import com.swtecnn.sprinkler.view.models.fromDailyForecast
+import kotlin.math.floor
 
 class MainActivity : AppCompatActivity() {
 
@@ -42,26 +49,63 @@ class MainActivity : AppCompatActivity() {
         locationView.setHasFixedSize(true)
         locationView.addItemDecoration(DividerItemDecoration(locationView.context, locationView.layoutManager!!.layoutDirection))
 
-//        val forecasts = listOf(
-//            Forecast(
-//                datestamp = "February 7, 2020",
-//                temperature = "23º",
-//                icon = R.drawable.rain
-//            ),
-//            Forecast(
-//                datestamp = "February 8, 2020",
-//                temperature = "23º",
-//                icon = R.drawable.cloudy
-//            ),
-//            Forecast(
-//                datestamp = "February 9, 2020",
-//                temperature = "25º",
-//                icon = R.drawable.partly_cloudy
-//            )
-//        )
-
         forecastView.adapter =
             ForecastAdapter(this, forecasts)
+
+        class ForecastAsyncTask: AsyncTask<Void, Void, WeatherForecast?>() {
+
+            override fun doInBackground(vararg params: Void): WeatherForecast? {
+                val weatherForecastResponse = RetrofitClient.getWeatherForecast().execute()
+                if(!weatherForecastResponse.isSuccessful) {
+                    Log.e("WeatherForecastThread",
+                    "Weather forecast couldn't be fetched, reason: ${weatherForecastResponse.errorBody()}")
+                    return null
+                }
+                return weatherForecastResponse.body()
+            }
+
+            override fun onPostExecute(result: WeatherForecast?) {
+                super.onPostExecute(result)
+                if(result == null) {
+                    return
+                }
+                val digestedForecast: MutableList<Forecast> = mutableListOf()
+                for(forecast in result.daily) {
+                    digestedForecast.add(fromDailyForecast(forecast))
+                }
+                (forecastView.adapter!! as ForecastAdapter).forecast.clear()
+                (forecastView.adapter!! as ForecastAdapter).forecast.addAll(digestedForecast)
+                forecastView.adapter!!.notifyDataSetChanged()
+            }
+
+        }
+
+        class CurWthrAsyncTask: AsyncTask<Void, Void, CurrentWeather?>() {
+
+            override fun doInBackground(vararg params: Void?): CurrentWeather? {
+                val currentWeatherResponse = RetrofitClient.getCurrentWeather().execute()
+                if(!currentWeatherResponse.isSuccessful) {
+                    Log.e("CurrentWeatherThread",
+                    "Current weather couldn't be fetched, reason: ${currentWeatherResponse.errorBody()}")
+                    return null
+                }
+                return currentWeatherResponse.body()?.weather
+            }
+
+            override fun onPostExecute(result: CurrentWeather?) {
+                super.onPostExecute(result)
+                if(result == null) {
+                    return
+                }
+                tempValue.text = "${floor(result.temp.toDouble()).toInt()}°"
+                humidValue.text = "${result.humidity}%"
+            }
+
+        }
+
+        val forecastTask = ForecastAsyncTask()
+        val currentTask = CurWthrAsyncTask()
+        forecastTask.execute(); currentTask.execute()
 
         val locations = listOf(
             Location("Backyard"),

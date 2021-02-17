@@ -20,6 +20,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sprinklerSwitcher: ImageSwitcher
     private lateinit var forecastView: RecyclerView
     private lateinit var locationView: RecyclerView
+    private lateinit var tempValue: TextView
+    private lateinit var humidValue: TextView
     private var sprinklerOnline = true
 
     @Volatile var forecasts: List<Forecast> = mutableListOf()
@@ -32,6 +34,9 @@ class MainActivity : AppCompatActivity() {
         val locationLayoutManager = LinearLayoutManager(this)
         forecastView = findViewById(R.id.forecast)
         locationView = findViewById(R.id.locations)
+        tempValue = findViewById(R.id.tempValue)
+        humidValue = findViewById(R.id.humidValue)
+
         locationView.layoutManager = locationLayoutManager
         forecastView.setHasFixedSize(true)
         locationView.setHasFixedSize(true)

@@ -24,7 +24,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var humidValue: TextView
     private var sprinklerOnline = true
 
-    @Volatile var forecasts: List<Forecast> = mutableListOf()
+    @Volatile var forecasts: MutableList<Forecast> = mutableListOf()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

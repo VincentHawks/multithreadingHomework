@@ -2,10 +2,11 @@ package com.swtecnn.sprinkler.view.models
 
 import com.swtecnn.sprinkler.R
 import com.swtecnn.sprinkler.api.model.DailyForecast
+import kotlin.math.floor
 
 fun fromDailyForecast(forecast: DailyForecast): Forecast = Forecast(
     forecast.getDate(),
-    forecast.temp.day.toString(),
+    floor(forecast.temp.day).toInt().toString(),
     R.drawable.cloudy // TODO replace with actual image fetching
 )
 

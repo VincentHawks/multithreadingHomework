@@ -52,12 +52,6 @@ class MainActivity : AppCompatActivity() {
         forecastView.adapter =
             ForecastAdapter(this, forecasts)
 
-        weatherSubscription = RetrofitClient.getWeatherForecast()
-            .subscribeOn(Schedulers.single())
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe { forecast ->
-
-            }
 
         val locations = listOf(
             Location("Backyard"),

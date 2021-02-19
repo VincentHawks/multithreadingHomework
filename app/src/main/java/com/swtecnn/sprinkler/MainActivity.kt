@@ -9,6 +9,7 @@ import android.view.View
 import android.widget.*
 import androidx.constraintlayout.widget.Guideline
 import androidx.core.view.children
+import androidx.recyclerview.widget.AsyncDifferConfig
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -20,9 +21,10 @@ import com.swtecnn.sprinkler.view.adapters.LocationAdapter
 import com.swtecnn.sprinkler.view.models.Forecast
 import com.swtecnn.sprinkler.view.models.Location
 import com.swtecnn.sprinkler.view.models.fromDailyForecast
+import java.util.concurrent.Executors
 import kotlin.math.floor
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), WeatherUICallback {
 
     private lateinit var sprinklerSwitcher: ImageSwitcher
     private lateinit var forecastView: RecyclerView
@@ -30,6 +32,9 @@ class MainActivity : AppCompatActivity() {
     @Volatile private lateinit var tempValue: TextView
     @Volatile private lateinit var humidValue: TextView
     private var sprinklerOnline = true
+
+    private lateinit var forecastTask: ForecastAsyncTask
+    private lateinit var currentTask: CurWthrAsyncTask
 
     @Volatile var forecasts: MutableList<Forecast> = mutableListOf()
 
@@ -52,60 +57,10 @@ class MainActivity : AppCompatActivity() {
         forecastView.adapter =
             ForecastAdapter(this, forecasts)
 
-        class ForecastAsyncTask: AsyncTask<Void, Void, WeatherForecast?>() {
-
-            override fun doInBackground(vararg params: Void): WeatherForecast? {
-                val weatherForecastResponse = RetrofitClient.getWeatherForecast().execute()
-                if(!weatherForecastResponse.isSuccessful) {
-                    Log.e("WeatherForecastThread",
-                    "Weather forecast couldn't be fetched, reason: ${weatherForecastResponse.errorBody()}")
-                    return null
-                }
-                return weatherForecastResponse.body()
-            }
-
-            override fun onPostExecute(result: WeatherForecast?) {
-                super.onPostExecute(result)
-                if(result == null) {
-                    return
-                }
-                val digestedForecast: MutableList<Forecast> = mutableListOf()
-                for(forecast in result.daily) {
-                    digestedForecast.add(fromDailyForecast(forecast))
-                }
-                (forecastView.adapter!! as ForecastAdapter).forecast.clear()
-                (forecastView.adapter!! as ForecastAdapter).forecast.addAll(digestedForecast)
-                forecastView.adapter!!.notifyDataSetChanged()
-            }
-
-        }
-
-        class CurWthrAsyncTask: AsyncTask<Void, Void, CurrentWeather?>() {
-
-            override fun doInBackground(vararg params: Void?): CurrentWeather? {
-                val currentWeatherResponse = RetrofitClient.getCurrentWeather().execute()
-                if(!currentWeatherResponse.isSuccessful) {
-                    Log.e("CurrentWeatherThread",
-                    "Current weather couldn't be fetched, reason: ${currentWeatherResponse.errorBody()}")
-                    return null
-                }
-                return currentWeatherResponse.body()?.weather
-            }
-
-            override fun onPostExecute(result: CurrentWeather?) {
-                super.onPostExecute(result)
-                if(result == null) {
-                    return
-                }
-                tempValue.text = "${floor(result.temp.toDouble()).toInt()}°"
-                humidValue.text = "${result.humidity}%"
-            }
-
-        }
-
-        val forecastTask = ForecastAsyncTask()
-        val currentTask = CurWthrAsyncTask()
-        forecastTask.execute(); currentTask.execute()
+        forecastTask = ForecastAsyncTask()
+        currentTask = CurWthrAsyncTask()
+        forecastTask.executeOnExecutor(Executors.newSingleThreadExecutor(), this)
+        currentTask.executeOnExecutor(Executors.newSingleThreadExecutor(), this)
 
         val locations = listOf(
             Location("Backyard"),
@@ -138,5 +93,25 @@ class MainActivity : AppCompatActivity() {
                 component.findViewById<CheckBox>(R.id.checkBox).isChecked = false
             }
         }
+    }
+
+    override fun updateCurrentWeather(weather: CurrentWeather) {
+        tempValue.text = "${floor(weather.temp.toDouble()).toInt()}°"
+        humidValue.text = "${weather.humidity}%"
+    }
+
+    override fun updateWeatherForecast(forecast: WeatherForecast) {
+        val digestedForecast: MutableList<Forecast> = mutableListOf()
+        for(f in forecast.daily) {
+            digestedForecast.add(fromDailyForecast(f))
+        }
+        forecastView.adapter = ForecastAdapter(this, digestedForecast)
+        forecastView.adapter!!.notifyDataSetChanged()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        forecastTask.cancel(true)
+        currentTask.cancel(true)
     }
 }

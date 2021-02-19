@@ -81,8 +81,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     if(!Thread.interrupted()) {
                         runOnUiThread {
-                            (forecastView.adapter!! as ForecastAdapter).forecast.clear()
-                            (forecastView.adapter!! as ForecastAdapter).forecast.addAll(digestedForecast)
+                            forecastView.adapter = ForecastAdapter(this@MainActivity, digestedForecast)
                             forecastView.adapter!!.notifyDataSetChanged()
                         }
                     } else {

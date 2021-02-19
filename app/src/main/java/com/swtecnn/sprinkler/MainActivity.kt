@@ -1,19 +1,30 @@
 package com.swtecnn.sprinkler
 
 import android.content.res.Configuration
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.view.View
-import android.widget.*
+import android.widget.CheckBox
+import android.widget.ImageSwitcher
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.Guideline
 import androidx.core.view.children
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.swtecnn.sprinkler.api.RetrofitClient
+import com.swtecnn.sprinkler.api.model.CurrentWeatherForecast
+import com.swtecnn.sprinkler.api.model.WeatherForecast
 import com.swtecnn.sprinkler.view.adapters.ForecastAdapter
 import com.swtecnn.sprinkler.view.adapters.LocationAdapter
 import com.swtecnn.sprinkler.view.models.Forecast
 import com.swtecnn.sprinkler.view.models.Location
+import com.swtecnn.sprinkler.view.models.fromDailyForecast
+import kotlinx.coroutines.*
+import retrofit2.Call
+import retrofit2.Response
+import kotlin.math.floor
 
 class MainActivity : AppCompatActivity() {
 
@@ -23,6 +34,8 @@ class MainActivity : AppCompatActivity() {
     @Volatile private lateinit var tempValue: TextView
     @Volatile private lateinit var humidValue: TextView
     private var sprinklerOnline = true
+
+    private var scope = CoroutineScope(Job())
 
     @Volatile var forecasts: MutableList<Forecast> = mutableListOf()
 
@@ -42,26 +55,24 @@ class MainActivity : AppCompatActivity() {
         locationView.setHasFixedSize(true)
         locationView.addItemDecoration(DividerItemDecoration(locationView.context, locationView.layoutManager!!.layoutDirection))
 
-//        val forecasts = listOf(
-//            Forecast(
-//                datestamp = "February 7, 2020",
-//                temperature = "23º",
-//                icon = R.drawable.rain
-//            ),
-//            Forecast(
-//                datestamp = "February 8, 2020",
-//                temperature = "23º",
-//                icon = R.drawable.cloudy
-//            ),
-//            Forecast(
-//                datestamp = "February 9, 2020",
-//                temperature = "25º",
-//                icon = R.drawable.partly_cloudy
-//            )
-//        )
-
         forecastView.adapter =
             ForecastAdapter(this, forecasts)
+
+        //val weatherService = WeatherService(this)
+
+        scope.launch {
+            val result = RetrofitClient.getCurrentWeather()
+            runOnUiThread {
+                updateCurrentWeather(result)
+            }
+        }
+
+        scope.launch {
+            val result = RetrofitClient.getWeatherForecast()
+            runOnUiThread {
+                updateForecast(result)
+            }
+        }
 
         val locations = listOf(
             Location("Backyard"),
@@ -94,5 +105,25 @@ class MainActivity : AppCompatActivity() {
                 component.findViewById<CheckBox>(R.id.checkBox).isChecked = false
             }
         }
+    }
+
+    private fun updateCurrentWeather(forecast: CurrentWeatherForecast) {
+        val weather = forecast.weather
+        tempValue.text = "${floor(weather.temp).toInt().toString()}°"
+        humidValue.text = "${weather.humidity}%"
+    }
+
+    private fun updateForecast(forecast: WeatherForecast) {
+        val digestedForecast = mutableListOf<Forecast>()
+        for(f in forecast.daily) {
+            digestedForecast.add(fromDailyForecast(f))
+        }
+        forecastView.adapter = ForecastAdapter(this@MainActivity, digestedForecast)
+        forecastView.adapter!!.notifyDataSetChanged()
+    }
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
     }
 }

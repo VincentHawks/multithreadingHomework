@@ -8,6 +8,8 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import com.swtecnn.sprinkler.api.model.CurrentWeatherForecast
 import com.swtecnn.sprinkler.api.model.WeatherForecast
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private const val BASE_URL = "https://api.openweathermap.org"
 
@@ -29,12 +31,12 @@ object RetrofitClient {
             .build()
     }
 
-    fun getWeatherForecast(): Call<WeatherForecast> {
-        return api.getWeatherForecast()
+    suspend fun getWeatherForecast(): WeatherForecast = withContext(Dispatchers.IO){
+        api.getWeatherForecast()
     }
 
-    fun getCurrentWeather(): Call<CurrentWeatherForecast> {
-        return api.getCurrentWeatherForecast()
+    suspend fun getCurrentWeather(): CurrentWeatherForecast = withContext(Dispatchers.IO){
+        api.getCurrentWeatherForecast()
     }
 
     fun getImage(imageCode: String): Call<ResponseBody> {

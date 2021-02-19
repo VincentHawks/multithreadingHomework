@@ -7,6 +7,8 @@ import android.view.View
 import android.widget.*
 import androidx.constraintlayout.widget.Guideline
 import androidx.core.view.children
+import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -19,6 +21,7 @@ import com.swtecnn.sprinkler.view.models.Location
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.schedulers.Schedulers
 import org.reactivestreams.Subscription
+import kotlin.math.floor
 
 class MainActivity : AppCompatActivity() {
 
@@ -28,8 +31,6 @@ class MainActivity : AppCompatActivity() {
     @Volatile private lateinit var tempValue: TextView
     @Volatile private lateinit var humidValue: TextView
     private var sprinklerOnline = true
-
-    private lateinit var weatherSubscription: Subscription
 
     @Volatile var forecasts: MutableList<Forecast> = mutableListOf()
 
@@ -49,9 +50,18 @@ class MainActivity : AppCompatActivity() {
         locationView.setHasFixedSize(true)
         locationView.addItemDecoration(DividerItemDecoration(locationView.context, locationView.layoutManager!!.layoutDirection))
 
-        forecastView.adapter =
-            ForecastAdapter(this, forecasts)
+        val weatherViewmodel = ViewModelProvider(this, ViewModelProvider.NewInstanceFactory()).get(MainViewmodel::class.java)
 
+        weatherViewmodel.weatherForecastData.observe(this, Observer {
+            forecastView.adapter = ForecastAdapter(this@MainActivity, it)
+            forecastView.adapter!!.notifyDataSetChanged()
+        })
+
+        weatherViewmodel.currentWeatherData.observe(this, Observer {
+            tempValue.text = "${floor(it.temp).toInt().toString()}°"
+            humidValue.text = "${it.humidity}%"
+
+        })
 
         val locations = listOf(
             Location("Backyard"),

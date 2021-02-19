@@ -9,6 +9,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import com.swtecnn.sprinkler.api.model.CurrentWeatherForecast
 import com.swtecnn.sprinkler.api.model.WeatherForecast
 import io.reactivex.rxjava3.core.Single
+import retrofit2.adapter.rxjava3.RxJava3CallAdapterFactory
 
 private const val BASE_URL = "https://api.openweathermap.org"
 
@@ -21,12 +22,15 @@ object RetrofitClient {
         val interceptor = HttpLoggingInterceptor().apply {
             setLevel(HttpLoggingInterceptor.Level.BODY)
         }
-        val client = OkHttpClient.Builder().addInterceptor(interceptor).build()
+        val client = OkHttpClient.Builder()
+                .addInterceptor(interceptor)
+                .build()
 
         return Retrofit.Builder()
             .baseUrl(baseUrl)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
+            .addCallAdapterFactory(RxJava3CallAdapterFactory.create())
             .build()
     }
 

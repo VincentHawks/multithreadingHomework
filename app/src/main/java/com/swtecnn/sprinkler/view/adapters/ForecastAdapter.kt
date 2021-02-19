@@ -10,7 +10,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.swtecnn.sprinkler.R
 import com.swtecnn.sprinkler.view.models.Forecast
 
-class ForecastAdapter(context: Context, @Volatile var forecast: MutableList<Forecast>): RecyclerView.Adapter<ForecastAdapter.ForecastViewHolder>() {
+class ForecastAdapter(context: Context, @Volatile var forecast: List<Forecast>): RecyclerView.Adapter<ForecastAdapter.ForecastViewHolder>() {
 
     private var inflater: LayoutInflater = LayoutInflater.from(context)
 

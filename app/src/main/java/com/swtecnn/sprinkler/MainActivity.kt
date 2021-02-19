@@ -35,6 +35,8 @@ class MainActivity : AppCompatActivity() {
     @Volatile private lateinit var humidValue: TextView
     private var sprinklerOnline = true
 
+    private lateinit var executor: ThreadPoolExecutor
+
     @Volatile var forecasts: MutableList<Forecast> = mutableListOf()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,14 +57,13 @@ class MainActivity : AppCompatActivity() {
 
         forecastView.adapter =
             ForecastAdapter(this, forecasts)
-        val executor = ThreadPoolExecutor(
+        executor = ThreadPoolExecutor(
             4, 8, 1, TimeUnit.HOURS, ArrayBlockingQueue<Runnable>(8)
         )
 
         executor.execute {
             while(!Thread.interrupted()) {
                 val weatherForecastResponse = RetrofitClient.getWeatherForecast().execute()
-                val currentWeatherResponse = RetrofitClient.getCurrentWeather().execute()
 
                 if (!weatherForecastResponse.isSuccessful) {
                     Log.println(
@@ -71,18 +72,10 @@ class MainActivity : AppCompatActivity() {
                     )
                 }
 
-                if (!currentWeatherResponse.isSuccessful) {
-                    Log.e(
-                        "WeatherThread",
-                        "Current weather couldn't be fetched, reason: ${currentWeatherResponse.errorBody()}"
-                    )
-                }
-
-                if (weatherForecastResponse.isSuccessful && currentWeatherResponse.isSuccessful) {
+                if (weatherForecastResponse.isSuccessful) {
                     // If fetched successfully, update the data on screen
                     val digestedForecast: MutableList<Forecast> = mutableListOf()
                     val rawForecast: WeatherForecast = weatherForecastResponse.body()!!
-                    val rawCurrentWeather: CurrentWeather = currentWeatherResponse.body()!!.weather
                     for(forecast in rawForecast.daily) {
                         digestedForecast.add(fromDailyForecast(forecast))
                     }
@@ -91,12 +84,40 @@ class MainActivity : AppCompatActivity() {
                             (forecastView.adapter!! as ForecastAdapter).forecast.clear()
                             (forecastView.adapter!! as ForecastAdapter).forecast.addAll(digestedForecast)
                             forecastView.adapter!!.notifyDataSetChanged()
-                            tempValue.text = "${floor(rawCurrentWeather.temp.toDouble()).toInt()}°"
-                            humidValue.text = "${rawCurrentWeather.humidity}%"
                         }
                     } else {
                         return@execute
                     }
+                }
+
+                try {
+                    Thread.sleep(ONE_HOUR_MILLIS)
+                } catch (e: InterruptedException) {
+                    return@execute
+                }
+            }
+        }
+
+        executor.execute {
+            while(! Thread.interrupted()) {
+                val currentWeatherResponse = RetrofitClient.getCurrentWeather().execute()
+
+                if (!currentWeatherResponse.isSuccessful) {
+                    Log.e(
+                        "WeatherThread",
+                        "Current weather couldn't be fetched, reason: ${currentWeatherResponse.errorBody()}"
+                    )
+                }
+
+                val rawCurrentWeather: CurrentWeather = currentWeatherResponse.body()!!.weather
+
+                if(! Thread.interrupted()) {
+                    runOnUiThread {
+                        tempValue.text = "${floor(rawCurrentWeather.temp.toDouble()).toInt()}°"
+                        humidValue.text = "${rawCurrentWeather.humidity}%"
+                    }
+                } else {
+                    return@execute
                 }
 
                 try {
@@ -138,5 +159,10 @@ class MainActivity : AppCompatActivity() {
                 component.findViewById<CheckBox>(R.id.checkBox).isChecked = false
             }
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        executor.shutdown()
     }
 }
